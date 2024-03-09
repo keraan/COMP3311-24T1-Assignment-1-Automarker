@@ -5,7 +5,17 @@
 expected_output_dir="expected_outputs"
 
 # This is the question you want to test
-current_question=7
+current_question=$1
+
+if [ -z "$current_question" ]; then
+    echo "Please provide a question number."
+    exit 1
+elif [ "$current_question" -lt 1 ] || [ "$current_question" -gt 10 ]; then
+    echo "Invalid question number. Please provide a number between 1 and 10."
+    exit 1
+fi
+
+echo $current_question
 
 # DO NOT TOUCH
 current_dump_index=1
@@ -54,7 +64,7 @@ for dump_file in "${dump_files[@]}"; do
     # Drop and recreate the database
     dropdb "$your_database" > /dev/null 2>&1
     createdb "$your_database" > /dev/null 2>&1
-    psql -d "$your_database" -f "$dump_file" > /dev/null 2>&1
+    psql -d "$your_database" -f "dump_files/$dump_file" > /dev/null 2>&1
     psql "$your_database" -f "$sql_file" > /dev/null 2>&1
 
     for expected_output in "$expected_output_dir"/*.txt; do 
@@ -79,7 +89,7 @@ for dump_file in "${dump_files[@]}"; do
 
         echo "Comparing $base_name"
 
-        if [ "$current_question" > 4 ]; then
+        if [ $current_question -gt 4 ]; then
             inputs_name="q${current_question}d${current_dump_index}_inputs[@]"
             inputs=("${!inputs_name}")
             current_array_index=0
@@ -98,7 +108,9 @@ for dump_file in "${dump_files[@]}"; do
                 current_array_index=$((current_array_index + 1))
             done
         else
-            psql -d "$your_database" -c "\copy (SELECT * FROM Q$current_question) TO 'diff.txt' WITH (FORMAT text)"
+            query="SELECT * FROM Q${current_question}"
+            psql -d "$your_database" -c "\copy ($query) TO 'diff.txt' WITH (FORMAT text)"
+            compare_differences "./expected_outputs/${base_name}.txt"
         fi
 
     done
